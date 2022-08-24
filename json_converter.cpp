@@ -49,38 +49,51 @@ JSON::value_type JSON::find_value(const std::string& source){
     else if(source[begin] == 't'){
             return std::make_pair(new bool(true), JSON::BOOL);
     }
-    // //VECTOR
-    // else if(source[begin] == '['){
-    //     colon = source.find(']');
-    // }
+    //VECTOR
+    else if(source[begin] == '['){
+        std::string copy = source;
+        std::vector<value_type>* new_vector = parse_vector(copy);
+        return std::make_pair(new_vector, JSON::VECTOR);
+    }
     // //MAP
-    // else if(source[begin] == '{'){
-        // map *new_map = new map();
-        // std::string key("NOT_FOUND"), value;
-
-        // string copy = source.substring();
-        // while(!brakets_array_ptr->empty()){
-        //     pop_pair(copy, key, value, brakets_array_ptr);
-        //     new_map[key] = value;
-        // }
-        // return std::make_pair(new_map, JSON::MAP);
-    // }
+    else if(source[begin] == '{'){
+        std::string copy = source;
+        json_type* new_map = parse_map(copy);
+        return std::make_pair(new_map, JSON::MAP);
+    }
     //raise error if value not found
 }
 
 //build object from source JSON file
-void JSON::parse(const char* fileName){
-    std::string source = get_content(fileName);
-
-    std::string key;
-    value_type value;
-    while (!source.empty())
-    {
-        pop_pair(source, key, value);
-        data[key] = value;
+JSON::json_type* JSON::parse_map(std::string& source){
+    json_type* map_ptr = new json_type();
+    while (!source.empty()){
+        int isTherePair = source.find_first_of(":]},");
+        //find a key and a value if there is the pair and remove it form the source
+        if(source[isTherePair] == ':') {
+            std::string key = find_key(source);
+            value_type value = find_value(source);
+            map_ptr->operator[](key) = value;
+        }
+        pop_pair(source);
     }
+    return map_ptr;
 }
 
+std::vector<JSON::value_type>* JSON::parse_vector(std::string& source){
+    std::vector<value_type>* vector_ptr = new std::vector<value_type>();
+    while (/*CONDITION ']' was found*/){
+        //check is there any element
+        int isTherePair = source.find_first_of("]\"1234567890ft");
+        //find a value and remove it from source file
+        if(isTherePair != ']') {
+            value_type new_value = find_value(source);
+            vector_ptr->push_back(new_value);
+        }
+        pop_pair(source);
+    }
+    return vector_ptr;
+}
 //copy a text from a source file
 std::string JSON::get_content(const char* fileName){
     std::fstream file(fileName, std::ios::in);
@@ -95,15 +108,8 @@ std::string JSON::get_content(const char* fileName){
 }
 
 //Find the first pair and remove it from the source
-void JSON::pop_pair(std::string& string, std::string& key, value_type& value){
-    //if(string.find_first_of(":}],"))
-    //there is at least one pair in scope
-    //if(string[found] == ':'){
-        key = find_key(string);
-        value = find_value(string);
-    //}
-    //cut processed element from the source text
-    int cut_pos = string.find_first_of("}],");
+bool JSON::pop_pair(std::string& source){
+    int cut_pos = source.find_first_of("}],");
     if(cut_pos == std::string::npos) //end of the scope
-    string = string.substr(cut_pos+1);
+    source = source.substr(cut_pos+1);
 }

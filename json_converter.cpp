@@ -10,7 +10,7 @@ std::string JSON::find_key(const std::string& source){
     return source.substr(begin+1, length);
 }
 
-JSON::value_type JSON::find_value(const std::string& source){
+JSON::value_type JSON::find_value(std::string& source){
      std::size_t colon = source.find(':');
     //if(colon == std::string::npos) return "";
 
@@ -51,49 +51,63 @@ JSON::value_type JSON::find_value(const std::string& source){
     }
     //VECTOR
     else if(source[begin] == '['){
-        std::string copy = source;
-        std::vector<value_type>* new_vector = parse_vector(copy);
+        std::vector<value_type>* new_vector = parse_vector(source);
         return std::make_pair(new_vector, JSON::VECTOR);
     }
     // //MAP
     else if(source[begin] == '{'){
-        std::string copy = source;
-        json_type* new_map = parse_map(copy);
+        json_type* new_map = parse_map(source);
         return std::make_pair(new_map, JSON::MAP);
     }
     //raise error if value not found
 }
 
-//build object from source JSON file
+//get pairs from the source and return it
 JSON::json_type* JSON::parse_map(std::string& source){
     json_type* map_ptr = new json_type();
+
     while (!source.empty()){
-        int isTherePair = source.find_first_of(":]},");
+        int isTherePair = source.find_first_of(":}");
+        std::string key;
+        value_type value;
+        
         //find a key and a value if there is the pair and remove it form the source
         if(source[isTherePair] == ':') {
-            std::string key = find_key(source);
-            value_type value = find_value(source);
+            key = find_key(source);
+            value = find_value(source);
             map_ptr->operator[](key) = value;
+            pop_pair(source);
         }
-        pop_pair(source);
+        else{
+            source = source.substr(isTherePair+1);
+            break;
+        }
     }
     return map_ptr;
 }
 
+//get values from the source and return it
 std::vector<JSON::value_type>* JSON::parse_vector(std::string& source){
     std::vector<value_type>* vector_ptr = new std::vector<value_type>();
-    while (/*CONDITION ']' was found*/){
+    while (!source.empty()){
         //check is there any element
-        int isTherePair = source.find_first_of("]\"1234567890ft");
-        //find a value and remove it from source file
+        int isTherePair = source.find_first_of("\"1234567890ft]");
+        //find a value and remove it from the source
         if(isTherePair != ']') {
             value_type new_value = find_value(source);
             vector_ptr->push_back(new_value);
+            pop_pair(source);
         }
-        pop_pair(source);
+        else{
+            source = source.substr(isTherePair+1);
+            break;
+        };
     }
     return vector_ptr;
 }
+
+
+
 //copy a text from a source file
 std::string JSON::get_content(const char* fileName){
     std::fstream file(fileName, std::ios::in);
@@ -108,8 +122,9 @@ std::string JSON::get_content(const char* fileName){
 }
 
 //Find the first pair and remove it from the source
-bool JSON::pop_pair(std::string& source){
+void JSON::pop_pair(std::string& source){
     int cut_pos = source.find_first_of("}],");
-    if(cut_pos == std::string::npos) //end of the scope
-    source = source.substr(cut_pos+1);
+    if(cut_pos == std::string::npos) {/*ERORR*/}
+    else if(source[cut_pos] == ',') source = source.substr(cut_pos+1);
+    else source = source.substr(cut_pos);
 }

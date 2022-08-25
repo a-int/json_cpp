@@ -6,23 +6,19 @@ std::string JSON::find_key(const std::string& source){
     begin = source.find("\"");
     if (begin == std::string::npos) return "";
 
-    length = source.find_first_of("\"", begin+1) - begin-1;
+    length = source.find("\"", begin+1) - begin-1;
     return source.substr(begin+1, length);
 }
 
 JSON::value_type JSON::find_value(std::string& source){
-     std::size_t colon = source.find(':');
-    //if(colon == std::string::npos) return "";
-
-    //begind is the index of the char that describe the value type
-    std::size_t begin = source.find_first_not_of(" \t\n", colon+1);
+    std::size_t begin = source.find_first_not_of(" \t\n");
     std::size_t length=0;
     
     //STRING
     if (source[begin] == '\"'){
         length = source.find("\"",begin+1) - begin - 1;
         void* string = new std::string(source.substr(begin+1, length));
-        return std::make_pair(string, JSON::STRING);
+        return make_pair(string, JSON::STRING);
     }
     //INT or DOUBLE
     else if(('0'<= source[begin]) && (source[begin] <= '9')){
@@ -32,32 +28,33 @@ JSON::value_type JSON::find_value(std::string& source){
         std::string str_num = source.substr(begin,length+1);
 
         //INT
-        if(str_num.find(".") != std::string::npos) {
+        if(str_num.find(".") == std::string::npos) {
             void* integral = new int(strtol(str_num.c_str(), NULL, 10));
-            return std::make_pair(integral, JSON::INT);
+            return make_pair(integral, JSON::INT);
         }
         //DOUBLE
         else{
             void* floating = new double(strtod(str_num.c_str(), NULL));
-            return std::make_pair(floating, JSON::DOUBLE);
+            return make_pair(floating, JSON::DOUBLE);
         }
     }
     //BOOL
     else if(source[begin] == 'f'){
-            return std::make_pair(new bool(false), JSON::BOOL);
+            return make_pair(new bool(false), JSON::BOOL);
     }
     else if(source[begin] == 't'){
-            return std::make_pair(new bool(true), JSON::BOOL);
+            return make_pair(new bool(true), JSON::BOOL);
     }
     //VECTOR
     else if(source[begin] == '['){
+        source = source.substr(begin+1);
         std::vector<value_type>* new_vector = parse_vector(source);
-        return std::make_pair(new_vector, JSON::VECTOR);
+        return make_pair(new_vector, JSON::VECTOR);
     }
     // //MAP
     else if(source[begin] == '{'){
         json_type* new_map = parse_map(source);
-        return std::make_pair(new_map, JSON::MAP);
+        return make_pair(new_map, JSON::MAP);
     }
     //raise error if value not found
 }
@@ -68,15 +65,14 @@ JSON::json_type* JSON::parse_map(std::string& source){
 
     while (!source.empty()){
         int isTherePair = source.find_first_of(":}");
-        std::string key;
-        value_type value;
         
         //find a key and a value if there is the pair and remove it form the source
         if(source[isTherePair] == ':') {
-            key = find_key(source);
-            value = find_value(source);
+            std::string key = find_key(source);
+            pop_key(source);
+            value_type value = find_value(source);
+            pop_value(source);
             map_ptr->operator[](key) = value;
-            pop_pair(source);
         }
         else{
             source = source.substr(isTherePair+1);
@@ -93,10 +89,10 @@ std::vector<JSON::value_type>* JSON::parse_vector(std::string& source){
         //check is there any element
         int isTherePair = source.find_first_of("\"1234567890ft]");
         //find a value and remove it from the source
-        if(isTherePair != ']') {
+        if(source[isTherePair] != ']') {
             value_type new_value = find_value(source);
+            pop_value(source);
             vector_ptr->push_back(new_value);
-            pop_pair(source);
         }
         else{
             source = source.substr(isTherePair+1);
@@ -106,25 +102,88 @@ std::vector<JSON::value_type>* JSON::parse_vector(std::string& source){
     return vector_ptr;
 }
 
+void JSON::parse(std::string& source){
+    data = parse_map(source);
+}
 
 
-//copy a text from a source file
+//copy a tenew_valuet from a source file
 std::string JSON::get_content(const char* fileName){
     std::fstream file(fileName, std::ios::in);
     if (!file.is_open()) return "";
     
-    std::string file_text, tmp;
+    std::string file_tenew_valuet, tmp;
     while(std::getline(file,tmp)){
-        file_text += tmp;
+        file_tenew_valuet += tmp;
     }
     file.close();
-    return file_text;
+    return file_tenew_valuet;
 }
 
 //Find the first pair and remove it from the source
-void JSON::pop_pair(std::string& source){
+void JSON::pop_value(std::string& source){
     int cut_pos = source.find_first_of("}],");
     if(cut_pos == std::string::npos) {/*ERORR*/}
     else if(source[cut_pos] == ',') source = source.substr(cut_pos+1);
     else source = source.substr(cut_pos);
 }
+
+void JSON::pop_key(std::string& source){
+    std::size_t begin, new_begin;
+    new_begin = source.find(":");
+    source = source.substr(new_begin+1);
+}
+
+JSON::pair JSON::make_pair(void* data, variable_type type){
+    return pair{data, type};
+}
+
+JSON::pair& JSON::operator[](const std::string& key){
+    return data->operator[](key);
+}
+
+JSON::pair& JSON::pair::operator=(const pair& new_pair){
+    if (this->first != new_pair.first)
+    {
+        //free mem
+        this->first = new_pair.first;
+        this->second = new_pair.second;
+    }
+    return *this;
+}
+
+void JSON::pair::operator=(int new_value){
+    int* data = reinterpret_cast<int*>(this->first);
+    if (new_value != *data){
+        delete data;
+        this->first = new int(new_value);
+    }
+}
+void JSON::pair::operator=(double new_value){
+    double* data = reinterpret_cast<double*>(this->first);
+    if (new_value != *data){
+        delete data;
+        this->first = new double(new_value);
+    }
+}
+void JSON::pair::operator=(bool new_value){
+    bool* data = reinterpret_cast<bool*>(this->first);
+    if (new_value != *data){
+        delete data;
+        this->first = new bool(new_value);
+    }
+}
+void JSON::pair::operator=(const std::string& new_value){
+    std::string* data = reinterpret_cast<std::string*>(this->first);
+    if (new_value != *data){
+        delete data;
+        this->first = new std::string(new_value);
+    }
+}
+
+// void pair::operator=(const std::map& new_value){
+    
+// }
+// void pair::operator=(const std::vector& new_value){
+    
+// }

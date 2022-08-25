@@ -106,20 +106,6 @@ void JSON::parse(std::string& source){
     data = parse_map(source);
 }
 
-
-//copy a tenew_valuet from a source file
-std::string JSON::get_content(const char* fileName){
-    std::fstream file(fileName, std::ios::in);
-    if (!file.is_open()) return "";
-    
-    std::string file_tenew_valuet, tmp;
-    while(std::getline(file,tmp)){
-        file_tenew_valuet += tmp;
-    }
-    file.close();
-    return file_tenew_valuet;
-}
-
 //Find the first pair and remove it from the source
 void JSON::pop_value(std::string& source){
     int cut_pos = source.find_first_of("}],");
@@ -134,56 +120,23 @@ void JSON::pop_key(std::string& source){
     source = source.substr(new_begin+1);
 }
 
+//copy a tenew_valuet from a source file
+std::string JSON::get_content(const char* fileName){
+    std::fstream file(fileName, std::ios::in);
+    if (!file.is_open()) return "";
+    
+    std::string file_tenew_valuet, tmp;
+    while(std::getline(file,tmp)){
+        file_tenew_valuet += tmp;
+    }
+    file.close();
+    return file_tenew_valuet;
+}
+
 JSON::pair JSON::make_pair(void* data, variable_type type){
     return pair{data, type};
 }
 
-JSON::pair& JSON::operator[](const std::string& key){
+JSON::value_type& JSON::operator[](const std::string& key){
     return data->operator[](key);
 }
-
-JSON::pair& JSON::pair::operator=(const pair& new_pair){
-    if (this->first != new_pair.first)
-    {
-        //free mem
-        this->first = new_pair.first;
-        this->second = new_pair.second;
-    }
-    return *this;
-}
-
-void JSON::pair::operator=(int new_value){
-    int* data = reinterpret_cast<int*>(this->first);
-    if (new_value != *data){
-        delete data;
-        this->first = new int(new_value);
-    }
-}
-void JSON::pair::operator=(double new_value){
-    double* data = reinterpret_cast<double*>(this->first);
-    if (new_value != *data){
-        delete data;
-        this->first = new double(new_value);
-    }
-}
-void JSON::pair::operator=(bool new_value){
-    bool* data = reinterpret_cast<bool*>(this->first);
-    if (new_value != *data){
-        delete data;
-        this->first = new bool(new_value);
-    }
-}
-void JSON::pair::operator=(const std::string& new_value){
-    std::string* data = reinterpret_cast<std::string*>(this->first);
-    if (new_value != *data){
-        delete data;
-        this->first = new std::string(new_value);
-    }
-}
-
-// void pair::operator=(const std::map& new_value){
-    
-// }
-// void pair::operator=(const std::vector& new_value){
-    
-// }

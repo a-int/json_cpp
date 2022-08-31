@@ -17,8 +17,8 @@ JSON::value_type JSON::find_value(std::string& source){
     //STRING
     if (source[begin] == '\"'){
         length = source.find("\"",begin+1) - begin - 1;
-        void* string = new std::string(source.substr(begin+1, length));
-        return make_pair(string, JSON::STRING);
+        std::string* string = new std::string(source.substr(begin+1, length));
+        return {make_pair(string, string->size()), JSON::STRING};
     }
     //INT or DOUBLE
     else if(('0'<= source[begin]) && (source[begin] <= '9')){
@@ -30,38 +30,38 @@ JSON::value_type JSON::find_value(std::string& source){
         //INT
         if(str_num.find(".") == std::string::npos) {
             void* integral = new int(strtol(str_num.c_str(), NULL, 10));
-            return make_pair(integral, JSON::INT);
+            return {make_pair(integral, 1), JSON::INT};
         }
         //DOUBLE
         else{
             void* floating = new double(strtod(str_num.c_str(), NULL));
-            return make_pair(floating, JSON::DOUBLE);
+            return { make_pair(floating,  1), JSON::DOUBLE};
         }
     }
     //BOOL
     else if(source[begin] == 'f'){
-            return make_pair(new bool(false), JSON::BOOL);
+            return { make_pair(new bool(false), 1), JSON::BOOL};
     }
     else if(source[begin] == 't'){
-            return make_pair(new bool(true), JSON::BOOL);
+            return {make_pair(new bool(true), 1), JSON::BOOL};
     }
     //VECTOR
     else if(source[begin] == '['){
         source = source.substr(begin+1);
-        std::vector<value_type>* new_vector = parse_vector(source);
-        return make_pair(new_vector, JSON::VECTOR);
+        json_vector* new_vector = parse_vector(source);
+        return { make_pair(new_vector, new_vector->size()), JSON::VECTOR};
     }
     // //MAP
     else if(source[begin] == '{'){
-        json_type* new_map = parse_map(source);
-        return make_pair(new_map, JSON::MAP);
+        json_map* new_map = parse_map(source);
+        return {make_pair(new_map, new_map->size()), JSON::MAP};
     }
     //raise error if value not found
 }
 
 //get pairs from the source and return it
-JSON::json_type* JSON::parse_map(std::string& source){
-    json_type* map_ptr = new json_type();
+JSON::json_map* JSON::parse_map(std::string& source){
+    json_map* map_ptr = new json_map();
 
     while (!source.empty()){
         int isTherePair = source.find_first_of(":}");
@@ -83,8 +83,8 @@ JSON::json_type* JSON::parse_map(std::string& source){
 }
 
 //get values from the source and return it
-std::vector<JSON::value_type>* JSON::parse_vector(std::string& source){
-    std::vector<value_type>* vector_ptr = new std::vector<value_type>();
+JSON::json_vector* JSON::parse_vector(std::string& source){
+    json_vector* vector_ptr = new json_vector();
     while (!source.empty()){
         //check is there any element
         int isTherePair = source.find_first_of("\"1234567890ft]");
@@ -133,10 +133,61 @@ std::string JSON::get_content(const char* fileName){
     return file_tenew_valuet;
 }
 
-JSON::pair JSON::make_pair(void* data, variable_type type){
+JSON::variable_type JSON::get_type(const std::string& key){
+    if (data->count(key) != 0)
+        return data->operator[](key).second;
+}
+
+JSON::pair JSON::make_pair(void* data, std::size_t type){
     return pair{data, type};
 }
 
-JSON::value_type& JSON::operator[](const std::string& key){
-    return data->operator[](key);
+ JSON::pair& JSON::pair::operator=(const pair& new_pair){
+     if (this->first != new_pair.first)
+     {
+         //free mem
+         this->first = new_pair.first;
+         this->second = new_pair.second;
+     }
+     return *this;
+ }
+
+JSON::pair& JSON::operator[](const std::string& key){
+    if (data->count(key) != 0)    
+        return data->operator[](key).first;
+    //else erorr;
 }
+
+void JSON::pair::operator=(int new_value){
+     int* data = reinterpret_cast<int*>(this->first);
+     if (new_value != *data){
+         delete data;
+         this->first = new int(new_value);
+     }
+}
+void JSON::pair::operator=(double new_value){
+     double* data = reinterpret_cast<double*>(this->first);
+     if (new_value != *data){
+         delete data;
+         this->first = new double(new_value);
+     }
+}
+void JSON::pair::operator=(bool new_value){
+     bool* data = reinterpret_cast<bool*>(this->first);
+     if (new_value != *data){
+         delete data;
+         this->first = new bool(new_value);
+     }
+}
+void JSON::pair::operator=(const char* new_value){
+     std::string* data = reinterpret_cast<std::string*>(this->first);
+     if ((std::string)new_value != *data){
+         delete data;
+         this->first = new std::string(new_value);
+     }
+}
+
+// void pair::operator=(const std::map& new_value){
+// }
+//  void JSON::pair::operator=(const std::vector& new_value){
+//  }

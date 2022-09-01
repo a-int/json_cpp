@@ -3,33 +3,16 @@
 #include <string>
 #include <vector>
 #include <map>
-
-
+struct pair;
 class JSON{
 public:
     enum variable_type{
         NONE = 0, STRING, INT, DOUBLE, BOOL, VECTOR, MAP
     };
 
-    struct pair{
-        pair():first(nullptr), second(NONE) {}
-        pair(void* ptr, std::size_t size): first(ptr), second(size) {}
-        pair& operator=(const pair&);
-        
-        void operator=(const char*);
-        void operator=(int);
-        void operator=(double);
-        void operator=(bool);
-        // void operator=(const std::map& new_value);
-        // void operator=(const std::vector& new_value);
-
-        void* first;
-        std::size_t second;
-    };
-
-    typedef std::pair<JSON::pair, variable_type>            value_type;
-    typedef std::map<const std::string, value_type>         json_map;
-    typedef std::vector<value_type>                         json_vector;
+    typedef pair                                    value_type;
+    typedef std::map<const std::string, value_type> json_map;
+    typedef std::vector<value_type>                 json_vector;
 
     //return the name of the first key from the source
     std::string find_key(const std::string& source);
@@ -47,10 +30,10 @@ public:
     void pop_key(std::string& source);
     //Find the first pair and remove it from the source
     void pop_value(std::string& source);
-    
     //copy a text from a source file
     std::string get_content(const char* fileName);
     variable_type get_type(const std::string& key);
+    
 
     pair& operator[](const std::string&);
 
@@ -60,14 +43,34 @@ public:
     json_map::const_iterator   end()   const   {return data->cend();}
 
 private:
-    pair make_pair(void*, std::size_t);
-private:
     json_map* data;
 };
 
+struct pair{
+        pair(): first(nullptr), second(JSON::NONE), usr_count(new int(1)){};
+        pair(void* data, JSON::variable_type type): first(data), second(type), usr_count(new int(1)){}
+        pair(const pair& orig): first(orig.first), second(orig.second), usr_count(orig.usr_count) {*usr_count +=1;}
+        ~pair(){free();}
+        
+        void operator=(const pair&);
+        void operator=(void*);
+        void free();
+        
+        void* first;
+        JSON::variable_type second;
+        int *usr_count;
+};
+
+pair build_pair(void*, JSON::variable_type);
+
 template<typename T>
-T& get(JSON::pair& value){
-    return *(reinterpret_cast<T*>(value.first));
+T& get(const JSON::value_type& value){
+    return *(get_ptr<T>(value));
+}
+
+template<typename T>
+T* get_ptr(const JSON::value_type& value){
+    return reinterpret_cast<T*>(value.first);
 }
 
 template<typename T>

@@ -47,26 +47,28 @@ private:
 };
 
 struct pair{
-        pair(): first(nullptr), second(JSON::NONE), usr_count(new int(1)){};
-        pair(void* data, JSON::variable_type type): first(data), second(type), usr_count(new int(1)){}
-        pair(const pair& orig): first(orig.first), second(orig.second), usr_count(orig.usr_count) {*usr_count +=1;}
-        ~pair(){free();}
-        
-        void operator=(const pair&);
-        void operator=(void*);
-        void free();
-        
-        void* first;
-        JSON::variable_type second;
-        int *usr_count;
+    pair(): first(nullptr), second(JSON::NONE), usr_count(new int(1)){};
+    pair(void* data, JSON::variable_type type): first(data), second(type), usr_count(new int(1)){}
+    pair(const pair& orig): first(orig.first), second(orig.second), usr_count(orig.usr_count) {*usr_count +=1;}
+    ~pair(){free();}
+    
+    void operator=(const pair&);
+    void operator=(void*);
+    void free();
+    
+    void* first;
+    JSON::variable_type second;
+    int *usr_count;
+
+    template<typename T>
+    T get();
+    template<typename T>
+    T get_vec();
+    template<typename T>
+    T get_map();
 };
 
 pair build_pair(void*, JSON::variable_type);
-
-template<typename T>
-T& get(const JSON::value_type& value){
-    return *(get_ptr<T>(value));
-}
 
 template<typename T>
 T* get_ptr(const JSON::value_type& value){
@@ -74,11 +76,45 @@ T* get_ptr(const JSON::value_type& value){
 }
 
 template<typename T>
+T get_val(const JSON::value_type& value){
+    return *get_ptr<T>(value);
+}
+
+template<typename T>
 std::vector<T> convert_vector(JSON::json_vector& vec_val){
     std::vector<T> new_vec;
     for (auto& i: vec_val)
     {
-        new_vec.push_back(get<T>(i));
+        new_vec.push_back(get_val<T>(i));
     }
     return new_vec;
+}
+
+template<typename key_type, typename mapped_type>
+std::map<key_type, mapped_type> convert_map(JSON::json_map& map_val){
+    std::map<key_type, mapped_type> new_map;
+    for (auto& i: map_val)
+    {
+        new_map[i.first] = get_auto<mapped_type>(i.second);
+    }
+    return new_map;
+}
+
+template<typename T>
+T pair::get(){
+    return *reinterpret_cast<T*>(this->first);
+}
+
+template<typename T>
+T pair::get_vec(){
+    auto vec = get_val<JSON::json_vector>(*this);
+    using type = typename T::value_type;
+    return convert_vector<type>(vec);
+}
+template<typename T>
+T pair::get_map(){
+    auto map = get_val<JSON::json_map>(*this);
+    using key_type = typename T::key_type;
+    using mapped_type = typename T::mapped_type;
+    return convert_map<key_type, mapped_type>(map);
 }
